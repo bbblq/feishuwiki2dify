@@ -2,13 +2,73 @@ version: '3.8'
 
 services:
   feishu-wiki-sync:
-    build: .
     image: bbblq/feishuwiki2dify:latest
     container_name: feishuwiki2dify
     restart: always
-    env_file:
-      - .env
     environment:
-      # These can also be set here, but .env is recommended
+      - FEISHU_APP_ID=${FEISHU_APP_ID}
+      - FEISHU_APP_SECRET=${FEISHU_APP_SECRET}
+      - FEISHU_WIKI_SPACE_ID=${FEISHU_WIKI_SPACE_ID}
+      - DIFY_API_KEY=${DIFY_API_KEY}
+      - DIFY_DATASET_ID=${DIFY_DATASET_ID}
+      - DIFY_BASE_URL=${DIFY_BASE_URL}
       - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-60}
       - RUN_ONCE=${RUN_ONCE:-false}
+    x-casaos:
+      envs:
+        - container: FEISHU_APP_ID
+          description:
+            en_us: "Feishu/Lark App ID"
+            zh_cn: "飞书自建应用的 App ID"
+          default: ""
+        - container: FEISHU_APP_SECRET
+          description:
+            en_us: "Feishu/Lark App Secret"
+            zh_cn: "飞书自建应用的 App Secret"
+          default: ""
+        - container: FEISHU_WIKI_SPACE_ID
+          description:
+            en_us: "Feishu/Lark Wiki Space ID"
+            zh_cn: "飞书知识空间的 Space ID"
+          default: ""
+        - container: DIFY_API_KEY
+          description:
+            en_us: "Dify Dataset API Key (starts with dataset-)"
+            zh_cn: "Dify 知识库 API 访问凭证 (dataset- 开头)"
+          default: ""
+        - container: DIFY_DATASET_ID
+          description:
+            en_us: "Dify Dataset ID"
+            zh_cn: "Dify 空知识库 ID"
+          default: ""
+        - container: DIFY_BASE_URL
+          description:
+            en_us: "Dify Base API URL (e.g. http://192.168.200.240:3701/v1)"
+            zh_cn: "Dify API 服务端点 (例：http://192.168.200.240:3701/v1)"
+          default: "http://localhost/v1"
+        - container: SYNC_INTERVAL_MINUTES
+          description:
+            en_us: "Synchronization interval in minutes"
+            zh_cn: "自动定时同步时间间隔（单位：分钟）"
+          default: "60"
+        - container: RUN_ONCE
+          description:
+            en_us: "Run once and exit (true or false)"
+            zh_cn: "是否仅执行一次后退出（true 或 false）"
+          default: "false"
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  main: feishu-wiki-sync
+  author: bbblq
+  category: Utility
+  description:
+    en_us: "Sync Feishu/Lark Wiki documents to Dify Datasets automatically."
+    zh_cn: "自动将飞书知识库文档同步至 Dify 知识库。"
+  icon: https://img.icons8.com/fluency/512/sync.png
+  title:
+    en_us: "Feishu Wiki to Dify"
+    zh_cn: "飞书知识库同步至 Dify"
+  developer: bbblq
