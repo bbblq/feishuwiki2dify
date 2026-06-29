@@ -401,7 +401,7 @@ def blocks_to_markdown(blocks, doc_token, token):
     # 从根节点开始处理
     process_block(root["block_id"])
 
-    # 后处理：将连续的列表项（有序/无序）用\n合并成一个整体段落，避免每个条目被\n\n切成独立 chunk
+    # 后处理1：将连续的列表项（有序/无序）用\n合并成一个整体段落
     def is_list_item(s):
         if not s:
             return False
@@ -424,7 +424,34 @@ def blocks_to_markdown(blocks, doc_token, token):
             merged.append(line)
             i += 1
 
-    return "\n\n".join(merged)
+    # 后处理2：将"短标题行"（≤20字、末尾是冒号/：的行）和紧跟的下一块用\n合并
+    # 避免"注意事项：""字段定义："等独立成只有5个字的碎片 chunk
+    import re
+    final = []
+    j = 0
+    while j < len(merged):
+        block = merged[j]
+        # 判断是否是短标题行：纯文本、不超过20个字符、末尾是中文冒号或英文冒号
+        stripped = block.strip()
+        is_short_heading = (
+            len(stripped) <= 20
+            and not stripped.startswith('#')
+            and not stripped.startswith('![')
+            and not stripped.startswith('|')
+            and not stripped.startswith('-')
+            and not stripped.startswith('>')
+            and re.search(r'[：:]\s*$', stripped)
+            and j + 1 < len(merged)
+        )
+        if is_short_heading:
+            # 与下一块合并
+            final.append(block + "\n" + merged[j + 1])
+            j += 2
+        else:
+            final.append(block)
+            j += 1
+
+    return "\n\n".join(final)
 
 
 def table_to_markdown_lines(table_block, block_map):
