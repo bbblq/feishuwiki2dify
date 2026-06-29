@@ -1,6 +1,8 @@
 import os
 import time
+import logging
 import threading
+from datetime import datetime, timezone, timedelta
 from app import app
 import state
 from sync_to_dify import sync, load_settings
@@ -12,8 +14,26 @@ try:
 except ImportError:
     pass
 
+# Force Python's logging module to format all logs (including Flask/Werkzeug) in Beijing Time (UTC+8)
+def beijing_converter(*args):
+    timestamp = args[0] if args else time.time()
+    tz_beijing = timezone(timedelta(hours=8))
+    dt = datetime.fromtimestamp(timestamp, tz_beijing)
+    return dt.timetuple()
+
+logging.Formatter.converter = beijing_converter
+
+# Helper functions to get Beijing Time strings
+def get_beijing_time_str():
+    tz_beijing = timezone(timedelta(hours=8))
+    return datetime.now(tz_beijing).strftime("%Y-%m-%d %H:%M:%S")
+
+def get_beijing_time_str_from_epoch(epoch):
+    tz_beijing = timezone(timedelta(hours=8))
+    return datetime.fromtimestamp(epoch, tz_beijing).strftime("%Y-%m-%d %H:%M:%S")
+
 def start_web_server():
-    print("Starting Web Dashboard on http://0.0.0.0:8080...")
+    print(f"Starting Web Dashboard on http://0.0.0.0:8080... (Beijing Time: {get_beijing_time_str()})")
     # debug=False is required when running Flask in a background thread to prevent reloader conflicts
     app.run(host="0.0.0.0", port=8080, debug=False)
 
@@ -31,7 +51,7 @@ def run_sync_task():
         state.status = "failed"
         state.error_message = str(e)
     finally:
-        state.last_sync_time = time.strftime("%Y-%m-%d %H:%M:%S")
+        state.last_sync_time = get_beijing_time_str()
 
 def main():
     # Start web server thread
@@ -41,7 +61,7 @@ def main():
     # Wait a moment for the server to bind and output startup logs
     time.sleep(1)
 
-    print("Feishu Wiki to Dify sync scheduler initialized.")
+    print(f"Feishu Wiki to Dify sync scheduler initialized. (Beijing Time: {get_beijing_time_str()})")
 
     # Set event initially to run the first sync immediately on startup
     state.sync_event.set()
@@ -69,7 +89,7 @@ def main():
 
         interval_seconds = interval_minutes * 60.0
         next_time_epoch = time.time() + interval_seconds
-        state.next_sync_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(next_time_epoch))
+        state.next_sync_time = get_beijing_time_str_from_epoch(next_time_epoch)
         
         print(f"\n[Scheduler] Next scheduled sync at: {state.next_sync_time} (Interval: {interval_minutes} minutes)")
         
@@ -85,7 +105,7 @@ def main():
         else:
             print("\n[Scheduler] Scheduled sync interval reached.")
             
-        print(f"Starting sync run at {time.strftime('%Y-%m-%d %H:%M:%S')}...")
+        print(f"Starting sync run at {get_beijing_time_str()}...")
         run_sync_task()
         print("Sync run completed.")
 
