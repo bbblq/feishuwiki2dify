@@ -364,6 +364,27 @@
                 </div>
                 <form id="config-form">
                     <div class="form-group">
+                        <label for="FORCE_SINGLE_CHUNK" style="font-weight: bold; color: var(--primary);">知识库分段模式 (FORCE_SINGLE_CHUNK)</label>
+                        <select id="FORCE_SINGLE_CHUNK">
+                            <option value="true">整篇文档为一个分段 (推荐：适合一文一答)</option>
+                            <option value="false">自定义分块限制 (按字数强行切分)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group-row" id="chunk-params-row" style="margin-top: 1rem;">
+                        <div class="form-group">
+                            <label for="MAX_TOKENS">分块最大字数 (max_tokens)</label>
+                            <input type="number" id="MAX_TOKENS" required min="1" placeholder="800">
+                        </div>
+                        <div class="form-group">
+                            <label for="CHUNK_OVERLAP">重叠字符字数 (chunk_overlap)</label>
+                            <input type="number" id="CHUNK_OVERLAP" required min="0" placeholder="150">
+                        </div>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;">
+
+                    <div class="form-group">
                         <label for="FEISHU_APP_ID">飞书 App ID</label>
                         <input type="text" id="FEISHU_APP_ID" required placeholder="cli_...">
                     </div>
@@ -412,26 +433,7 @@
                         </div>
                     </div>
 
-                    <div class="form-group-row">
-                        <div class="form-group">
-                            <label for="FORCE_SINGLE_CHUNK">分段模式 (FORCE_SINGLE_CHUNK)</label>
-                            <select id="FORCE_SINGLE_CHUNK">
-                                <option value="true">整篇文档作为一个分段 (推荐，适合一文一答)</option>
-                                <option value="false">自定义分块长度 (按字数切分)</option>
-                            </select>
-                        </div>
-                    </div>
 
-                    <div class="form-group-row" id="chunk-params-row">
-                        <div class="form-group">
-                            <label for="MAX_TOKENS">分块最大字数 (max_tokens)</label>
-                            <input type="number" id="MAX_TOKENS" required min="1" placeholder="800">
-                        </div>
-                        <div class="form-group">
-                            <label for="CHUNK_OVERLAP">重叠字符字数 (chunk_overlap)</label>
-                            <input type="number" id="CHUNK_OVERLAP" required min="0" placeholder="150">
-                        </div>
-                    </div>
 
                     <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
                         💾 保存参数配置并动态载入

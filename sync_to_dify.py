@@ -582,7 +582,7 @@ def upsert_to_dify(title, content, doc_token, existing_doc_id=None):
     is_force_single = str(FORCE_SINGLE_CHUNK).lower() in ("true", "1", "yes")
 
     if is_force_single:
-        # 强制单文档作为一个分段模式：使用永远不匹配的分段符，并且分段上限设为 50,000 token（约4万字），实现单篇整页不切分
+        # 强制单文档作为一个分段模式：使用永远不匹配的分段符，并且分段上限设为 4000（Dify 支持的上限值），实现单篇整页尽量不切分
         process_rule = {
             "mode": "custom",
             "rules": {
@@ -592,7 +592,7 @@ def upsert_to_dify(title, content, doc_token, existing_doc_id=None):
                 ],
                 "segmentation": {
                     "separator": "###___NEVER_SPLIT_THIS_DOCUMENT___###",
-                    "max_tokens": 50000,
+                    "max_tokens": 4000,
                     "chunk_overlap": 0
                 }
             }
