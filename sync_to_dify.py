@@ -401,7 +401,30 @@ def blocks_to_markdown(blocks, doc_token, token):
     # 从根节点开始处理
     process_block(root["block_id"])
 
-    return "\n\n".join(line for line in lines if line is not None)
+    # 后处理：将连续的列表项（有序/无序）用\n合并成一个整体段落，避免每个条目被\n\n切成独立 chunk
+    def is_list_item(s):
+        if not s:
+            return False
+        import re
+        return bool(re.match(r'^(\d+\.|  \d+\.|  -|- |> 💡)', s))
+
+    merged = []
+    i = 0
+    filtered = [l for l in lines if l is not None]
+    while i < len(filtered):
+        line = filtered[i]
+        if is_list_item(line):
+            group = [line]
+            i += 1
+            while i < len(filtered) and is_list_item(filtered[i]):
+                group.append(filtered[i])
+                i += 1
+            merged.append("\n".join(group))
+        else:
+            merged.append(line)
+            i += 1
+
+    return "\n\n".join(merged)
 
 
 def table_to_markdown_lines(table_block, block_map):
@@ -544,7 +567,7 @@ def upsert_to_dify(title, content, doc_token, existing_doc_id=None):
                 { "id": "remove_urls_emails", "enabled": False }
             ],
             "segmentation": {
-                "separator": "\n",
+                "separator": "\n\n",
                 "max_tokens": max_tok,
                 "chunk_overlap": overlap
             }
