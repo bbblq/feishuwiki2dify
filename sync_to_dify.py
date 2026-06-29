@@ -371,7 +371,12 @@ def blocks_to_markdown(blocks, doc_token, token):
                 image_url = download_image(token, image_token, doc_token)
                 if image_url:
                     alt_text = caption if caption else "插图"
-                    lines.append(f"![{alt_text}]({image_url})")
+                    img_md = f"!\[{alt_text}]({image_url})"
+                    # 将图片行与上一行内容用单个\n拼接，避免图片被\n\n切分成独立空语义chunk
+                    if lines:
+                        lines[-1] = lines[-1] + "\n" + img_md
+                    else:
+                        lines.append(img_md)
                 else:
                     lines.append(f"[图片: {caption or image_token}]")
             elif image_token:
