@@ -69,7 +69,8 @@ def manage_config():
         allowed_fields = [
             "FEISHU_APP_ID", "FEISHU_APP_SECRET", "FEISHU_WIKI_SPACE_ID",
             "DIFY_API_KEY", "DIFY_DATASET_ID", "DIFY_BASE_URL",
-            "IMAGE_BASE_URL", "SYNC_INTERVAL_MINUTES", "RUN_ONCE"
+            "IMAGE_BASE_URL", "SYNC_INTERVAL_MINUTES", "RUN_ONCE",
+            "MAX_TOKENS", "CHUNK_OVERLAP"
         ]
         sanitized_config = {}
         for field in allowed_fields:
@@ -87,11 +88,15 @@ def manage_config():
     else:
         # GET method
         settings = load_settings()
-        # Ensure we return default sync interval if not explicitly defined
+        # Ensure we return default values if not explicitly defined
         if "SYNC_INTERVAL_MINUTES" not in settings:
             settings["SYNC_INTERVAL_MINUTES"] = os.environ.get("SYNC_INTERVAL_MINUTES", "60")
         if "RUN_ONCE" not in settings:
             settings["RUN_ONCE"] = os.environ.get("RUN_ONCE", "false")
+        if "MAX_TOKENS" not in settings:
+            settings["MAX_TOKENS"] = os.environ.get("MAX_TOKENS", "800")
+        if "CHUNK_OVERLAP" not in settings:
+            settings["CHUNK_OVERLAP"] = os.environ.get("CHUNK_OVERLAP", "150")
         return jsonify(settings)
 
 @app.route("/api/sync", methods=["POST"])

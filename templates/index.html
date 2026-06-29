@@ -412,6 +412,17 @@
                         </div>
                     </div>
 
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label for="MAX_TOKENS">分块最大字数 (max_tokens)</label>
+                            <input type="number" id="MAX_TOKENS" required min="1" placeholder="800">
+                        </div>
+                        <div class="form-group">
+                            <label for="CHUNK_OVERLAP">重叠字符字数 (chunk_overlap)</label>
+                            <input type="number" id="CHUNK_OVERLAP" required min="0" placeholder="150">
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
                         💾 保存参数配置并动态载入
                     </button>
@@ -540,7 +551,8 @@
             const fields = [
                 "FEISHU_APP_ID", "FEISHU_APP_SECRET", "FEISHU_WIKI_SPACE_ID",
                 "DIFY_API_KEY", "DIFY_DATASET_ID", "DIFY_BASE_URL",
-                "IMAGE_BASE_URL", "SYNC_INTERVAL_MINUTES", "RUN_ONCE"
+                "IMAGE_BASE_URL", "SYNC_INTERVAL_MINUTES", "RUN_ONCE",
+                "MAX_TOKENS", "CHUNK_OVERLAP"
             ];
             
             const payload = {};

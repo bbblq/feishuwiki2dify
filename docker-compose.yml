@@ -21,6 +21,8 @@ services:
       - RUN_ONCE=${RUN_ONCE:-false}
       - IMAGE_BASE_URL=${IMAGE_BASE_URL:-}
       - TZ=${TZ:-Asia/Shanghai}
+      - MAX_TOKENS=${MAX_TOKENS:-800}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-150}
     x-casaos:
       envs:
         - container: FEISHU_APP_ID
@@ -73,6 +75,16 @@ services:
             en_us: "Timezone (e.g. Asia/Shanghai)"
             zh_cn: "时区设置"
           default: "Asia/Shanghai"
+        - container: MAX_TOKENS
+          description:
+            en_us: "Max tokens per chunk (default 800)"
+            zh_cn: "知识库分块最大长度"
+          default: "800"
+        - container: CHUNK_OVERLAP
+          description:
+            en_us: "Overlap length between chunks (default 150)"
+            zh_cn: "知识库分块重叠长度"
+          default: "150"
 
   image-server:
     image: nginx:alpine
