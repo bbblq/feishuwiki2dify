@@ -414,6 +414,16 @@
 
                     <div class="form-group-row">
                         <div class="form-group">
+                            <label for="FORCE_SINGLE_CHUNK">分段模式 (FORCE_SINGLE_CHUNK)</label>
+                            <select id="FORCE_SINGLE_CHUNK">
+                                <option value="true">整篇文档作为一个分段 (推荐，适合一文一答)</option>
+                                <option value="false">自定义分块长度 (按字数切分)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group-row" id="chunk-params-row">
+                        <div class="form-group">
                             <label for="MAX_TOKENS">分块最大字数 (max_tokens)</label>
                             <input type="number" id="MAX_TOKENS" required min="1" placeholder="800">
                         </div>
@@ -524,10 +534,28 @@
                         input.value = config[key];
                     }
                 }
+                toggleChunkParams();
             } catch (err) {
                 showToast("获取参数配置失败", "error");
             }
         }
+
+        const forceSingleSelect = document.getElementById("FORCE_SINGLE_CHUNK");
+        const chunkParamsRow = document.getElementById("chunk-params-row");
+        
+        function toggleChunkParams() {
+            if (forceSingleSelect.value === "true") {
+                chunkParamsRow.style.display = "none";
+                document.getElementById("MAX_TOKENS").removeAttribute("required");
+                document.getElementById("CHUNK_OVERLAP").removeAttribute("required");
+            } else {
+                chunkParamsRow.style.display = "flex";
+                document.getElementById("MAX_TOKENS").setAttribute("required", "required");
+                document.getElementById("CHUNK_OVERLAP").setAttribute("required", "required");
+            }
+        }
+        
+        forceSingleSelect.addEventListener("change", toggleChunkParams);
 
         // Trigger manual sync
         document.getElementById("btn-sync").addEventListener("click", async () => {
@@ -552,7 +580,7 @@
                 "FEISHU_APP_ID", "FEISHU_APP_SECRET", "FEISHU_WIKI_SPACE_ID",
                 "DIFY_API_KEY", "DIFY_DATASET_ID", "DIFY_BASE_URL",
                 "IMAGE_BASE_URL", "SYNC_INTERVAL_MINUTES", "RUN_ONCE",
-                "MAX_TOKENS", "CHUNK_OVERLAP"
+                "FORCE_SINGLE_CHUNK", "MAX_TOKENS", "CHUNK_OVERLAP"
             ];
             
             const payload = {};

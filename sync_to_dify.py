@@ -15,6 +15,7 @@ IMAGE_BASE_URL = ""
 IMAGES_DIR = "/app/images"
 MAX_TOKENS = "800"
 CHUNK_OVERLAP = "150"
+FORCE_SINGLE_CHUNK = "true"
 
 def load_settings():
     """Load configuration from JSON file first, falling back to environment variables"""
@@ -36,13 +37,14 @@ def load_settings():
         "IMAGE_BASE_URL": config.get("IMAGE_BASE_URL") or os.environ.get("IMAGE_BASE_URL", ""),
         "IMAGES_DIR": config.get("IMAGES_DIR") or os.environ.get("IMAGES_DIR", "/app/images"),
         "MAX_TOKENS": config.get("MAX_TOKENS") or os.environ.get("MAX_TOKENS", "800"),
-        "CHUNK_OVERLAP": config.get("CHUNK_OVERLAP") or os.environ.get("CHUNK_OVERLAP", "150")
+        "CHUNK_OVERLAP": config.get("CHUNK_OVERLAP") or os.environ.get("CHUNK_OVERLAP", "150"),
+        "FORCE_SINGLE_CHUNK": config.get("FORCE_SINGLE_CHUNK") or os.environ.get("FORCE_SINGLE_CHUNK", "true")
     }
 
 def load_globals():
     global FEISHU_APP_ID, FEISHU_APP_SECRET, FEISHU_WIKI_SPACE_ID
     global DIFY_API_KEY, DIFY_DATASET_ID, DIFY_BASE_URL
-    global IMAGE_BASE_URL, IMAGES_DIR, MAX_TOKENS, CHUNK_OVERLAP
+    global IMAGE_BASE_URL, IMAGES_DIR, MAX_TOKENS, CHUNK_OVERLAP, FORCE_SINGLE_CHUNK
     settings = load_settings()
     FEISHU_APP_ID = settings["FEISHU_APP_ID"]
     FEISHU_APP_SECRET = settings["FEISHU_APP_SECRET"]
@@ -54,6 +56,7 @@ def load_globals():
     IMAGES_DIR = settings["IMAGES_DIR"]
     MAX_TOKENS = settings["MAX_TOKENS"]
     CHUNK_OVERLAP = settings["CHUNK_OVERLAP"]
+    FORCE_SINGLE_CHUNK = settings["FORCE_SINGLE_CHUNK"]
 
 # Initial load
 load_globals()
@@ -576,30 +579,49 @@ def upsert_to_dify(title, content, doc_token, existing_doc_id=None):
     headers = {"Authorization": f"Bearer {DIFY_API_KEY}"}
     
     # 构建自定义分块规则
-    try:
-        max_tok = int(MAX_TOKENS)
-    except ValueError:
-        max_tok = 800
-        
-    try:
-        overlap = int(CHUNK_OVERLAP)
-    except ValueError:
-        overlap = 150
+    is_force_single = str(FORCE_SINGLE_CHUNK).lower() in ("true", "1", "yes")
 
-    process_rule = {
-        "mode": "custom",
-        "rules": {
-            "pre_processing_rules": [
-                { "id": "remove_extra_spaces", "enabled": True },
-                { "id": "remove_urls_emails", "enabled": False }
-            ],
-            "segmentation": {
-                "separator": "\n\n",
-                "max_tokens": max_tok,
-                "chunk_overlap": overlap
+    if is_force_single:
+        # 强制单文档作为一个分段模式：使用永远不匹配的分段符，并且分段上限设为 50,000 token（约4万字），实现单篇整页不切分
+        process_rule = {
+            "mode": "custom",
+            "rules": {
+                "pre_processing_rules": [
+                    { "id": "remove_extra_spaces", "enabled": True },
+                    { "id": "remove_urls_emails", "enabled": False }
+                ],
+                "segmentation": {
+                    "separator": "###___NEVER_SPLIT_THIS_DOCUMENT___###",
+                    "max_tokens": 50000,
+                    "chunk_overlap": 0
+                }
             }
         }
-    }
+    else:
+        try:
+            max_tok = int(MAX_TOKENS)
+        except ValueError:
+            max_tok = 800
+            
+        try:
+            overlap = int(CHUNK_OVERLAP)
+        except ValueError:
+            overlap = 150
+
+        process_rule = {
+            "mode": "custom",
+            "rules": {
+                "pre_processing_rules": [
+                    { "id": "remove_extra_spaces", "enabled": True },
+                    { "id": "remove_urls_emails", "enabled": False }
+                ],
+                "segmentation": {
+                    "separator": "\n\n",
+                    "max_tokens": max_tok,
+                    "chunk_overlap": overlap
+                }
+            }
+        }
     
     if existing_doc_id:
         # 更新已有文档

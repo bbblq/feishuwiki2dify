@@ -70,7 +70,7 @@ def manage_config():
             "FEISHU_APP_ID", "FEISHU_APP_SECRET", "FEISHU_WIKI_SPACE_ID",
             "DIFY_API_KEY", "DIFY_DATASET_ID", "DIFY_BASE_URL",
             "IMAGE_BASE_URL", "SYNC_INTERVAL_MINUTES", "RUN_ONCE",
-            "MAX_TOKENS", "CHUNK_OVERLAP"
+            "FORCE_SINGLE_CHUNK", "MAX_TOKENS", "CHUNK_OVERLAP"
         ]
         sanitized_config = {}
         for field in allowed_fields:
@@ -93,6 +93,8 @@ def manage_config():
             settings["SYNC_INTERVAL_MINUTES"] = os.environ.get("SYNC_INTERVAL_MINUTES", "60")
         if "RUN_ONCE" not in settings:
             settings["RUN_ONCE"] = os.environ.get("RUN_ONCE", "false")
+        if "FORCE_SINGLE_CHUNK" not in settings:
+            settings["FORCE_SINGLE_CHUNK"] = os.environ.get("FORCE_SINGLE_CHUNK", "true")
         if "MAX_TOKENS" not in settings:
             settings["MAX_TOKENS"] = os.environ.get("MAX_TOKENS", "800")
         if "CHUNK_OVERLAP" not in settings:

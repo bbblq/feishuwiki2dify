@@ -23,6 +23,7 @@ services:
       - TZ=${TZ:-Asia/Shanghai}
       - MAX_TOKENS=${MAX_TOKENS:-800}
       - CHUNK_OVERLAP=${CHUNK_OVERLAP:-150}
+      - FORCE_SINGLE_CHUNK=${FORCE_SINGLE_CHUNK:-true}
     x-casaos:
       envs:
         - container: FEISHU_APP_ID
@@ -85,6 +86,11 @@ services:
             en_us: "Overlap length between chunks (default 150)"
             zh_cn: "知识库分块重叠长度"
           default: "150"
+        - container: FORCE_SINGLE_CHUNK
+          description:
+            en_us: "Force entire document as a single chunk (true/false, default true)"
+            zh_cn: "是否整篇文档作为一个分段 (适合一文一答)"
+          default: "true"
 
   image-server:
     image: nginx:alpine
