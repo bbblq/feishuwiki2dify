@@ -9,6 +9,9 @@ WORKDIR /app
 # Install system dependencies if needed, then install python requests library
 RUN pip install --no-cache-dir requests
 
+# Create images directory for downloaded Feishu images
+RUN mkdir -p /app/images
+
 # Copy only the necessary python files
 COPY sync_to_dify.py main.py ./
 

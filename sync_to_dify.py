@@ -7,14 +7,59 @@ FEISHU_APP_SECRET = os.environ.get("FEISHU_APP_SECRET", "")
 FEISHU_WIKI_SPACE_ID = os.environ.get("FEISHU_WIKI_SPACE_ID", "")  # 飞书知识库空间ID
 
 # Dify 知识库API Key
-DIFY_API_KEY = os.environ.get("DIFY_API_KEY", "")  
+DIFY_API_KEY = os.environ.get("DIFY_API_KEY", "")
 
 DIFY_DATASET_ID = os.environ.get("DIFY_DATASET_ID", "")       # 刚创建的空知识库ID
 DIFY_BASE_URL = os.environ.get("DIFY_BASE_URL", "http://localhost/v1")  # Dify API 基础地址
 
+# 图片同步配置
+IMAGE_BASE_URL = os.environ.get("IMAGE_BASE_URL", "")  # 图片服务的公开访问地址（如 http://192.168.200.240:8089）
+IMAGES_DIR = os.environ.get("IMAGES_DIR", "/app/images")  # 图片本地保存目录
+
+# ===== 飞书文档 Block 类型常量 =====
+BLOCK_PAGE = 1
+BLOCK_TEXT = 2
+BLOCK_H1 = 3
+BLOCK_H2 = 4
+BLOCK_H3 = 5
+BLOCK_H4 = 6
+BLOCK_H5 = 7
+BLOCK_H6 = 8
+BLOCK_H7 = 9
+BLOCK_H8 = 10
+BLOCK_H9 = 11
+BLOCK_BULLET = 12
+BLOCK_ORDERED = 13
+BLOCK_CODE = 14
+BLOCK_QUOTE = 15
+BLOCK_TODO = 17
+BLOCK_CALLOUT = 19
+BLOCK_DIVIDER = 22
+BLOCK_FILE = 23
+BLOCK_GRID = 24
+BLOCK_GRID_COLUMN = 25
+BLOCK_IMAGE = 27
+BLOCK_TABLE = 32
+BLOCK_TABLE_CELL = 33
+BLOCK_QUOTE_CONTAINER = 35
+
+# Block 类型到其数据字段名的映射（这些 block 都包含 elements 列表）
+TEXT_BLOCK_FIELDS = {
+    BLOCK_TEXT: "text",
+    BLOCK_H1: "heading1", BLOCK_H2: "heading2", BLOCK_H3: "heading3",
+    BLOCK_H4: "heading4", BLOCK_H5: "heading5", BLOCK_H6: "heading6",
+    BLOCK_H7: "heading7", BLOCK_H8: "heading8", BLOCK_H9: "heading9",
+    BLOCK_BULLET: "bullet",
+    BLOCK_ORDERED: "ordered",
+    BLOCK_CODE: "code",
+    BLOCK_QUOTE: "quote",
+    BLOCK_TODO: "todo",
+    BLOCK_CALLOUT: "callout",
+}
+
 # ===== 获取飞书 Token =====
 def get_feishu_token():
-    res = requests.post("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal", 
+    res = requests.post("https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal",
         json={"app_id": FEISHU_APP_ID, "app_secret": FEISHU_APP_SECRET})
     return res.json()["tenant_access_token"]
 
@@ -31,14 +76,14 @@ def get_wiki_nodes(token):
                 params["page_token"] = page_token
             if parent_token:
                 params["parent_node_token"] = parent_token
-            
+
             url = f"https://open.feishu.cn/open-apis/wiki/v2/spaces/{FEISHU_WIKI_SPACE_ID}/nodes"
             res = requests.get(url, headers=headers, params=params).json()
-            
+
             if res.get("code") != 0:
                 print(f"获取节点失败 (parent: {parent_token}): {res.get('msg')}")
                 break
-                
+
             data = res.get("data", {})
             items = data.get("items", [])
             for item in items:
@@ -46,7 +91,7 @@ def get_wiki_nodes(token):
                 # 如果该节点有子节点，递归获取
                 if item.get("has_child"):
                     traverse(item["node_token"])
-                    
+
             if not data.get("has_more"):
                 break
             page_token = data.get("page_token")
@@ -54,8 +99,338 @@ def get_wiki_nodes(token):
     traverse()
     return nodes
 
-# ===== 获取文档内容 =====
+# ===== 获取文档所有 Block（带分页）=====
+def get_doc_blocks(token, doc_token):
+    """通过 blocks API 获取文档的完整块列表（含图片块等结构信息）"""
+    headers = {"Authorization": f"Bearer {token}"}
+    blocks = []
+    page_token = None
+
+    while True:
+        params = {"page_size": 500}
+        if page_token:
+            params["page_token"] = page_token
+
+        url = f"https://open.feishu.cn/open-apis/docx/v1/documents/{doc_token}/blocks"
+        res = requests.get(url, headers=headers, params=params).json()
+
+        if res.get("code") != 0:
+            print(f"  获取文档块失败 ({doc_token}): {res.get('msg')}")
+            break
+
+        data = res.get("data", {})
+        items = data.get("items", [])
+        blocks.extend(items)
+
+        if not data.get("has_more"):
+            break
+        page_token = data.get("page_token")
+
+    return blocks
+
+# ===== 从 Block 的 elements 列表中提取纯文本 =====
+def extract_text_from_elements(elements):
+    """提取 elements 中的所有文本片段，拼接返回"""
+    parts = []
+    for elem in elements:
+        if "text_run" in elem:
+            parts.append(elem["text_run"].get("content", ""))
+        elif "mention_user" in elem:
+            parts.append(f"@{elem['mention_user'].get('user_id', '用户')}")
+        elif "mention_doc" in elem:
+            title = elem["mention_doc"].get("title", "文档")
+            parts.append(f"[{title}]")
+        elif "equation" in elem:
+            parts.append(f"${elem['equation'].get('content', '')}$")
+    return "".join(parts)
+
+# ===== 从 Block 中提取文本内容 =====
+def get_block_text(block, block_type):
+    """获取文本类型 block 的文本内容"""
+    field_name = TEXT_BLOCK_FIELDS.get(block_type)
+    if not field_name:
+        return ""
+    data = block.get(field_name, {})
+    elements = data.get("elements", [])
+    return extract_text_from_elements(elements)
+
+# ===== 下载图片到本地 =====
+def download_image(token, image_token, doc_token):
+    """从飞书下载图片，保存到本地目录，返回公开访问 URL"""
+    if not IMAGE_BASE_URL:
+        return None
+
+    # 创建文档对应的图片目录
+    doc_images_dir = os.path.join(IMAGES_DIR, doc_token)
+    os.makedirs(doc_images_dir, exist_ok=True)
+
+    # 检查是否已经下载过（任意扩展名）
+    for existing in os.listdir(doc_images_dir):
+        if existing.startswith(image_token):
+            return f"{IMAGE_BASE_URL.rstrip('/')}/images/{doc_token}/{existing}"
+
+    # 从飞书 Drive API 下载
+    headers = {"Authorization": f"Bearer {token}"}
+    url = f"https://open.feishu.cn/open-apis/drive/v1/medias/{image_token}/download"
+
+    try:
+        res = requests.get(url, headers=headers, stream=True, timeout=30)
+        if res.status_code == 200:
+            # 根据 Content-Type 确定扩展名
+            content_type = res.headers.get("Content-Type", "image/png")
+            ext = "png"
+            if "jpeg" in content_type or "jpg" in content_type:
+                ext = "jpg"
+            elif "gif" in content_type:
+                ext = "gif"
+            elif "webp" in content_type:
+                ext = "webp"
+            elif "svg" in content_type:
+                ext = "svg"
+
+            image_path = os.path.join(doc_images_dir, f"{image_token}.{ext}")
+            with open(image_path, "wb") as f:
+                for chunk in res.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            print(f"    图片已下载: {image_token}.{ext}")
+            return f"{IMAGE_BASE_URL.rstrip('/')}/images/{doc_token}/{image_token}.{ext}"
+        else:
+            print(f"    下载图片失败 ({image_token}): HTTP {res.status_code} - {res.text[:200]}")
+            return None
+    except Exception as e:
+        print(f"    下载图片异常 ({image_token}): {e}")
+        return None
+
+# ===== 将 Block 树转换为 Markdown 文本（含图片链接）=====
+def blocks_to_markdown(blocks, doc_token, token):
+    """将飞书文档的 block 列表转换为 Markdown 字符串"""
+    # 构建 block_id → block 的映射
+    block_map = {b["block_id"]: b for b in blocks}
+
+    # 找到根 Page block
+    root = None
+    for b in blocks:
+        if b.get("block_type") == BLOCK_PAGE:
+            root = b
+            break
+
+    if not root:
+        return ""
+
+    lines = []
+    ordered_counters = {}  # 记录有序列表计数器
+
+    def process_block(block_id):
+        block = block_map.get(block_id)
+        if not block:
+            return
+
+        bt = block.get("block_type")
+
+        # ---- Page（根节点）：递归处理子节点 ----
+        if bt == BLOCK_PAGE:
+            for child_id in block.get("children", []):
+                process_block(child_id)
+
+        # ---- 文本段落 ----
+        elif bt == BLOCK_TEXT:
+            text = get_block_text(block, bt)
+            if text:
+                lines.append(text)
+
+        # ---- 标题 H1~H9 ----
+        elif BLOCK_H1 <= bt <= BLOCK_H9:
+            text = get_block_text(block, bt)
+            level = bt - BLOCK_H1 + 1
+            if text:
+                lines.append(f"{'#' * level} {text}")
+
+        # ---- 无序列表 ----
+        elif bt == BLOCK_BULLET:
+            text = get_block_text(block, bt)
+            lines.append(f"- {text}")
+            # 处理嵌套子项
+            for child_id in block.get("children", []):
+                child = block_map.get(child_id)
+                if child:
+                    child_bt = child.get("block_type")
+                    child_text = get_block_text(child, child_bt)
+                    if child_bt == BLOCK_BULLET:
+                        lines.append(f"  - {child_text}")
+                    elif child_bt == BLOCK_ORDERED:
+                        lines.append(f"  1. {child_text}")
+                    else:
+                        process_block(child_id)
+
+        # ---- 有序列表 ----
+        elif bt == BLOCK_ORDERED:
+            text = get_block_text(block, bt)
+            parent_id = block.get("parent_id", "")
+            ordered_counters[parent_id] = ordered_counters.get(parent_id, 0) + 1
+            lines.append(f"{ordered_counters[parent_id]}. {text}")
+            for child_id in block.get("children", []):
+                process_block(child_id)
+
+        # ---- 代码块 ----
+        elif bt == BLOCK_CODE:
+            text = get_block_text(block, bt)
+            data = block.get("code", {})
+            style = data.get("style", {})
+            # language 可能是整数（枚举值），也可能是字符串
+            lang = style.get("language", "")
+            if isinstance(lang, int):
+                lang = ""  # 飞书用整数表示语言类型，这里简化处理
+            lines.append(f"```{lang}")
+            lines.append(text)
+            lines.append("```")
+
+        # ---- 引用 ----
+        elif bt == BLOCK_QUOTE:
+            text = get_block_text(block, bt)
+            lines.append(f"> {text}")
+
+        # ---- 待办 ----
+        elif bt == BLOCK_TODO:
+            text = get_block_text(block, bt)
+            data = block.get("todo", {})
+            style = data.get("style", {})
+            done = style.get("done", False)
+            checkbox = "[x]" if done else "[ ]"
+            lines.append(f"- {checkbox} {text}")
+
+        # ---- 高亮块 (Callout) ----
+        elif bt == BLOCK_CALLOUT:
+            text = get_block_text(block, bt)
+            if text:
+                lines.append(f"> 💡 {text}")
+            # Callout 可能有子 block
+            for child_id in block.get("children", []):
+                process_block(child_id)
+
+        # ---- 分隔线 ----
+        elif bt == BLOCK_DIVIDER:
+            lines.append("---")
+
+        # ---- 图片 ----
+        elif bt == BLOCK_IMAGE:
+            image_data = block.get("image", {})
+            image_token = image_data.get("token", "")
+            caption = ""
+            caption_data = image_data.get("caption")
+            if caption_data:
+                # caption 可能是字符串或包含 content 的对象
+                if isinstance(caption_data, dict):
+                    caption = caption_data.get("content", "")
+                elif isinstance(caption_data, str):
+                    caption = caption_data
+
+            if image_token and IMAGE_BASE_URL:
+                image_url = download_image(token, image_token, doc_token)
+                if image_url:
+                    lines.append(f"![{caption}]({image_url})")
+                else:
+                    lines.append(f"[图片: {caption or image_token}]")
+            elif image_token:
+                lines.append(f"[图片: {caption or image_token}]")
+
+        # ---- 表格 ----
+        elif bt == BLOCK_TABLE:
+            table_lines = table_to_markdown_lines(block, block_map)
+            lines.extend(table_lines)
+
+        # ---- 容器类 block（Grid / GridColumn / QuoteContainer）——递归处理子节点 ----
+        elif bt in (BLOCK_GRID, BLOCK_GRID_COLUMN, BLOCK_QUOTE_CONTAINER):
+            for child_id in block.get("children", []):
+                process_block(child_id)
+
+        # ---- 文件附件 ----
+        elif bt == BLOCK_FILE:
+            file_data = block.get("file", {})
+            file_name = file_data.get("name", "附件")
+            lines.append(f"[📎 附件: {file_name}]")
+
+        # ---- 其他未知类型 ——尝试递归处理子节点 ----
+        else:
+            for child_id in block.get("children", []):
+                process_block(child_id)
+
+    # 从根节点开始处理
+    process_block(root["block_id"])
+
+    return "\n\n".join(line for line in lines if line is not None)
+
+
+def table_to_markdown_lines(table_block, block_map):
+    """将表格 Block 转换为 Markdown 表格文本行"""
+    table_data = table_block.get("table", {})
+    prop = table_data.get("property", {})
+    rows = prop.get("row_size", 0)
+    cols = prop.get("column_size", 0)
+
+    if rows == 0 or cols == 0:
+        return []
+
+    children = table_block.get("children", [])
+
+    result_lines = []
+    table_rows = []
+
+    for r in range(rows):
+        row = []
+        for c in range(cols):
+            idx = r * cols + c
+            if idx < len(children):
+                cell_block = block_map.get(children[idx])
+                if cell_block:
+                    cell_text = extract_cell_text(cell_block, block_map)
+                    row.append(cell_text.replace("\n", " ").strip())
+                else:
+                    row.append("")
+            else:
+                row.append("")
+        table_rows.append(row)
+
+    if table_rows:
+        # 表头
+        result_lines.append("| " + " | ".join(table_rows[0]) + " |")
+        result_lines.append("| " + " | ".join(["---"] * cols) + " |")
+        for row in table_rows[1:]:
+            result_lines.append("| " + " | ".join(row) + " |")
+
+    return result_lines
+
+def extract_cell_text(cell_block, block_map):
+    """从表格单元格 Block 及其子 Block 中提取文本"""
+    texts = []
+    for child_id in cell_block.get("children", []):
+        child = block_map.get(child_id)
+        if not child:
+            continue
+        bt = child.get("block_type")
+        if bt in TEXT_BLOCK_FIELDS:
+            texts.append(get_block_text(child, bt))
+        elif bt == BLOCK_IMAGE:
+            image_data = child.get("image", {})
+            caption = ""
+            caption_data = image_data.get("caption")
+            if caption_data and isinstance(caption_data, dict):
+                caption = caption_data.get("content", "")
+            texts.append(f"[图片: {caption or '嵌入图'}]")
+    return " ".join(texts)
+
+# ===== 获取文档内容（Markdown 格式，含图片链接）=====
 def get_doc_content(token, doc_token):
+    """获取文档内容，优先使用 blocks API 解析为带图片的 Markdown，失败时回退到纯文本"""
+    # 尝试使用 blocks API 获取完整结构
+    blocks = get_doc_blocks(token, doc_token)
+    if blocks:
+        md = blocks_to_markdown(blocks, doc_token, token)
+        if md.strip():
+            return md
+
+    # 回退到纯文本 raw_content
+    print(f"  回退到 raw_content 接口...")
     headers = {"Authorization": f"Bearer {token}"}
     res = requests.get(
         f"https://open.feishu.cn/open-apis/docx/v1/documents/{doc_token}/raw_content",
@@ -63,7 +438,7 @@ def get_doc_content(token, doc_token):
     if res.get("code") == 0:
         return res["data"]["content"]
     else:
-        print(f"获取文档内容失败 ({doc_token}): {res.get('msg')}")
+        print(f"  获取文档内容失败 ({doc_token}): {res.get('msg')}")
         return ""
 
 # ===== 写入 Dify 知识库 =====
@@ -71,7 +446,7 @@ def upsert_to_dify(title, content, doc_token):
     if not content.strip():
         print(f"文档 [{title}] 内容为空，跳过同步。")
         return
-        
+
     headers = {"Authorization": f"Bearer {DIFY_API_KEY}"}
     # 直接创建文本类型的文档
     url = f"{DIFY_BASE_URL}/datasets/{DIFY_DATASET_ID}/document/create-by-text"
@@ -85,7 +460,7 @@ def upsert_to_dify(title, content, doc_token):
             "doc_type": "feishu_wiki"
         }
     }
-    
+
     res = requests.post(url, headers=headers, json=payload)
     if res.status_code == 200 or res.status_code == 201:
         print(f"成功导入: {title}")
@@ -100,14 +475,20 @@ def sync():
     if not FEISHU_APP_ID or not FEISHU_APP_SECRET or not FEISHU_WIKI_SPACE_ID or not DIFY_DATASET_ID:
         print("请注意：飞书应用凭证、知识空间ID或Dify数据集ID配置不完整，请检查环境变量设置。")
         return
-        
+
+    if IMAGE_BASE_URL:
+        print(f"图片同步已启用，图片服务地址: {IMAGE_BASE_URL}")
+        os.makedirs(IMAGES_DIR, exist_ok=True)
+    else:
+        print("提示: 未设置 IMAGE_BASE_URL，图片将以占位符形式导入（不含实际图片链接）。")
+
     print("正在获取飞书 Token...")
     token = get_feishu_token()
-    
+
     print("正在读取飞书知识空间节点列表...")
     nodes = get_wiki_nodes(token)
     print(f"找到 {len(nodes)} 个节点")
-    
+
     for node in nodes:
         title = node.get("title", "未命名文档")
         # 仅同步新版文档(docx)，如果是快捷方式(shortcut)或旧版doc则根据需要过滤或处理
@@ -115,11 +496,11 @@ def sync():
         if obj_type != "docx":
             print(f"跳过非新版文档 ({obj_type}): {title}")
             continue
-            
+
         print(f"同步: {title}")
         content = get_doc_content(token, node["obj_token"])
         upsert_to_dify(title, content, node["obj_token"])
-        
+
     print("同步完成！")
 
 if __name__ == "__main__":
