@@ -549,7 +549,7 @@ def upsert_to_dify(title, content, doc_token, existing_doc_id=None):
                 { "id": "remove_urls_emails", "enabled": False }
             ],
             "segmentation": {
-                "separator": "\\n\\n",
+                "separator": "\n\n",
                 "max_tokens": max_tok,
                 "chunk_overlap": overlap
             }
