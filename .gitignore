@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Project Backups and Export Data
+exported_wiki/
+exported_wiki.zip
+all_markdowns/
+all_markdowns.zip
+knowledge_base_qa.csv
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store

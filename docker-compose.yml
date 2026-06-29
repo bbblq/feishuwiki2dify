@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  feishu-wiki-sync:
+    build: .
+    image: bbblq/feishuwiki2dify:latest
+    container_name: feishuwiki2dify
+    restart: always
+    env_file:
+      - .env
+    environment:
+      # These can also be set here, but .env is recommended
+      - SYNC_INTERVAL_MINUTES=${SYNC_INTERVAL_MINUTES:-60}
+      - RUN_ONCE=${RUN_ONCE:-false}
