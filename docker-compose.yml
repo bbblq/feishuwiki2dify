@@ -5,8 +5,11 @@ services:
     image: bbblq/feishuwiki2dify:latest
     container_name: feishuwiki2dify
     restart: always
+    ports:
+      - "${WEB_PORT:-8080}:8080"
     volumes:
       - /DATA/AppData/feishuwiki2dify/images:/app/images
+      - /DATA/AppData/feishuwiki2dify/config:/app/config
     environment:
       - FEISHU_APP_ID=${FEISHU_APP_ID}
       - FEISHU_APP_SECRET=${FEISHU_APP_SECRET}
@@ -89,3 +92,4 @@ x-casaos:
     en_us: "Feishu Wiki to Dify"
     zh_cn: "飞书知识库同步至 Dify"
   developer: bbblq
+  port_map: "8080"

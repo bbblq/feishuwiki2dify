@@ -1,20 +1,56 @@
 import os
+import json
 import requests
 
 # ===== 配置区 =====
-FEISHU_APP_ID = os.environ.get("FEISHU_APP_ID", "")
-FEISHU_APP_SECRET = os.environ.get("FEISHU_APP_SECRET", "")
-FEISHU_WIKI_SPACE_ID = os.environ.get("FEISHU_WIKI_SPACE_ID", "")  # 飞书知识库空间ID
+CONFIG_PATH = os.environ.get("CONFIG_PATH", "/app/config/config.json")
 
-# Dify 知识库API Key
-DIFY_API_KEY = os.environ.get("DIFY_API_KEY", "")
+FEISHU_APP_ID = ""
+FEISHU_APP_SECRET = ""
+FEISHU_WIKI_SPACE_ID = ""
+DIFY_API_KEY = ""
+DIFY_DATASET_ID = ""
+DIFY_BASE_URL = "http://localhost/v1"
+IMAGE_BASE_URL = ""
+IMAGES_DIR = "/app/images"
 
-DIFY_DATASET_ID = os.environ.get("DIFY_DATASET_ID", "")       # 刚创建的空知识库ID
-DIFY_BASE_URL = os.environ.get("DIFY_BASE_URL", "http://localhost/v1")  # Dify API 基础地址
+def load_settings():
+    """Load configuration from JSON file first, falling back to environment variables"""
+    config = {}
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                config = json.load(f)
+        except Exception as e:
+            print(f"Error loading config file: {e}")
+            
+    return {
+        "FEISHU_APP_ID": config.get("FEISHU_APP_ID") or os.environ.get("FEISHU_APP_ID", ""),
+        "FEISHU_APP_SECRET": config.get("FEISHU_APP_SECRET") or os.environ.get("FEISHU_APP_SECRET", ""),
+        "FEISHU_WIKI_SPACE_ID": config.get("FEISHU_WIKI_SPACE_ID") or os.environ.get("FEISHU_WIKI_SPACE_ID", ""),
+        "DIFY_API_KEY": config.get("DIFY_API_KEY") or os.environ.get("DIFY_API_KEY", ""),
+        "DIFY_DATASET_ID": config.get("DIFY_DATASET_ID") or os.environ.get("DIFY_DATASET_ID", ""),
+        "DIFY_BASE_URL": config.get("DIFY_BASE_URL") or os.environ.get("DIFY_BASE_URL", "http://localhost/v1"),
+        "IMAGE_BASE_URL": config.get("IMAGE_BASE_URL") or os.environ.get("IMAGE_BASE_URL", ""),
+        "IMAGES_DIR": config.get("IMAGES_DIR") or os.environ.get("IMAGES_DIR", "/app/images")
+    }
 
-# 图片同步配置
-IMAGE_BASE_URL = os.environ.get("IMAGE_BASE_URL", "")  # 图片服务的公开访问地址（如 http://192.168.200.240:8089）
-IMAGES_DIR = os.environ.get("IMAGES_DIR", "/app/images")  # 图片本地保存目录
+def load_globals():
+    global FEISHU_APP_ID, FEISHU_APP_SECRET, FEISHU_WIKI_SPACE_ID
+    global DIFY_API_KEY, DIFY_DATASET_ID, DIFY_BASE_URL
+    global IMAGE_BASE_URL, IMAGES_DIR
+    settings = load_settings()
+    FEISHU_APP_ID = settings["FEISHU_APP_ID"]
+    FEISHU_APP_SECRET = settings["FEISHU_APP_SECRET"]
+    FEISHU_WIKI_SPACE_ID = settings["FEISHU_WIKI_SPACE_ID"]
+    DIFY_API_KEY = settings["DIFY_API_KEY"]
+    DIFY_DATASET_ID = settings["DIFY_DATASET_ID"]
+    DIFY_BASE_URL = settings["DIFY_BASE_URL"]
+    IMAGE_BASE_URL = settings["IMAGE_BASE_URL"]
+    IMAGES_DIR = settings["IMAGES_DIR"]
+
+# Initial load
+load_globals()
 
 # ===== 飞书文档 Block 类型常量 =====
 BLOCK_PAGE = 1
@@ -464,11 +500,16 @@ def upsert_to_dify(title, content, doc_token):
     res = requests.post(url, headers=headers, json=payload)
     if res.status_code == 200 or res.status_code == 201:
         print(f"成功导入: {title}")
+        import state
+        state.total_docs_synced += 1
     else:
         print(f"导入 Dify 失败: {title}, 状态码: {res.status_code}, 响应: {res.text}")
 
 # ===== 主流程 =====
 def sync():
+    load_globals()
+    import state
+    state.total_docs_synced = 0
     if not DIFY_API_KEY or DIFY_API_KEY == "dataset-xxxxxxxx":
         print("请注意：您尚未设置 Dify 知识库 API Key！请设置 DIFY_API_KEY 环境变量。")
         return

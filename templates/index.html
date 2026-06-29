@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞书知识库同步 Dify 仪表盘</title>
+    <!-- Modern font -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary: #38bdf8;
+            --primary-hover: #0ea5e9;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(56, 189, 248, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo-section h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #38bdf8, #10b981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-section p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 968px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        /* Status Grid */
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .status-item {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .status-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Badge/Status Lights */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .badge-idle {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+        }
+
+        .badge-syncing {
+            background: rgba(56, 189, 248, 0.15);
+            color: var(--primary);
+        }
+
+        .badge-failed {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--error);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .badge-idle .pulse-dot { background-color: var(--success); }
+        .badge-failed .pulse-dot { background-color: var(--error); }
+        .badge-syncing .pulse-dot {
+            background-color: var(--primary);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.5; }
+            100% { transform: scale(0.9); opacity: 1; }
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #0284c7);
+            color: #0f172a;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            margin-top: 1rem;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        @media (max-width: 576px) {
+            .form-group-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input[type="text"], input[type="password"], input[type="number"], select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus, input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+        }
+
+        /* Console Output */
+        .console-container {
+            margin-top: 2rem;
+        }
+
+        .console {
+            background: #020617;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.25rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            height: 350px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            color: #38bdf8;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Alerts */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            font-weight: 500;
+            font-size: 0.9rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-success { background: rgba(16, 185, 129, 0.9); }
+        .toast-error { background: rgba(239, 68, 68, 0.9); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo-section">
+                <h1>飞书知识库 ➜ Dify 同步仪表盘</h1>
+                <p>实时查看数据同步状态，在线更新连接参数</p>
+            </div>
+            <div id="global-status-badge" class="badge badge-idle">
+                <span class="pulse-dot"></span>
+                <span id="global-status-text">就绪</span>
+            </div>
+        </header>
+
+        <div class="grid">
+            <!-- Left Side: Status and Control -->
+            <div>
+                <div class="card" style="margin-bottom: 2rem;">
+                    <div class="card-title">
+                        <span>运行状态概览</span>
+                    </div>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-label">当前状态</div>
+                            <div class="status-value" id="status-val">-</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">已同步文档数</div>
+                            <div class="status-value" id="docs-val">0</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">上次同步时间</div>
+                            <div class="status-value" id="last-val" style="font-size: 0.95rem;">-</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">下次计划同步</div>
+                            <div class="status-value" id="next-val" style="font-size: 0.95rem;">-</div>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="btn-sync">
+                        🚀 立即执行手动同步
+                    </button>
+                </div>
+
+                <div class="card console-container">
+                    <div class="card-title">
+                        <span>实时运行日志</span>
+                    </div>
+                    <div class="console" id="console-logs">加载日志中...</div>
+                </div>
+            </div>
+
+            <!-- Right Side: Settings Form -->
+            <div class="card">
+                <div class="card-title">
+                    <span>连接变量配置</span>
+                </div>
+                <form id="config-form">
+                    <div class="form-group">
+                        <label for="FEISHU_APP_ID">飞书 App ID</label>
+                        <input type="text" id="FEISHU_APP_ID" required placeholder="cli_...">
+                    </div>
+                    <div class="form-group">
+                        <label for="FEISHU_APP_SECRET">飞书 App Secret</label>
+                        <input type="password" id="FEISHU_APP_SECRET" required placeholder="••••••••••••••••">
+                    </div>
+                    <div class="form-group">
+                        <label for="FEISHU_WIKI_SPACE_ID">飞书知识库空间 ID</label>
+                        <input type="text" id="FEISHU_WIKI_SPACE_ID" required placeholder="76336333976...">
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;">
+
+                    <div class="form-group">
+                        <label for="DIFY_API_KEY">Dify 知识库 API Key</label>
+                        <input type="password" id="DIFY_API_KEY" required placeholder="dataset-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="DIFY_DATASET_ID">Dify 知识库 ID (Dataset ID)</label>
+                        <input type="text" id="DIFY_DATASET_ID" required placeholder="76de4aa9-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="DIFY_BASE_URL">Dify API 基础地址</label>
+                        <input type="text" id="DIFY_BASE_URL" required placeholder="http://192.168.200.240:3701/v1">
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;">
+
+                    <div class="form-group">
+                        <label for="IMAGE_BASE_URL">图片公开托管地址 (IMAGE_BASE_URL)</label>
+                        <input type="text" id="IMAGE_BASE_URL" placeholder="http://192.168.200.240:8089 (留空则不转图)">
+                    </div>
+
+                    <div class="form-group-row">
+                        <div class="form-group">
+                            <label for="SYNC_INTERVAL_MINUTES">定时同步间隔 (分钟)</label>
+                            <input type="number" id="SYNC_INTERVAL_MINUTES" required min="1" placeholder="60">
+                        </div>
+                        <div class="form-group">
+                            <label for="RUN_ONCE">单次运行模式 (RUN_ONCE)</label>
+                            <select id="RUN_ONCE">
+                                <option value="false">否 (持续后台运行)</option>
+                                <option value="true">是 (同步完单次退出)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+                        💾 保存参数配置并动态载入
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Box -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const statusMap = {
+            "idle": { text: "就绪 (空闲)", class: "badge-idle" },
+            "syncing": { text: "正在同步中...", class: "badge-syncing" },
+            "success": { text: "最近一次同步成功", class: "badge-idle" },
+            "failed": { text: "同步异常", class: "badge-failed" }
+        };
+
+        // Toast utility
+        function showToast(message, type = "success") {
+            const toast = document.getElementById("toast");
+            toast.textContent = message;
+            toast.className = `toast show toast-${type}`;
+            setTimeout(() => {
+                toast.classList.remove("show");
+            }, 3000);
+        }
+
+        // Fetch metrics and state
+        async function updateStatus() {
+            try {
+                const res = await fetch("/api/status");
+                const data = await res.json();
+
+                // Update UI fields
+                const info = statusMap[data.status] || { text: data.status, class: "badge-idle" };
+                
+                const badge = document.getElementById("global-status-badge");
+                badge.className = `badge ${info.class}`;
+                document.getElementById("global-status-text").textContent = info.text;
+
+                document.getElementById("status-val").textContent = info.text;
+                if (data.status === "failed" && data.error_message) {
+                    document.getElementById("status-val").innerHTML = `<span style="color: var(--error)">同步失败: ${data.error_message}</span>`;
+                }
+
+                document.getElementById("docs-val").textContent = data.total_docs_synced || 0;
+                document.getElementById("last-val").textContent = data.last_sync_time || "尚未执行";
+                document.getElementById("next-val").textContent = data.next_sync_time || "未设置定时";
+
+                // Handle Sync button disabled state
+                const syncBtn = document.getElementById("btn-sync");
+                if (data.status === "syncing") {
+                    syncBtn.disabled = true;
+                    syncBtn.textContent = "⏳ 同步正在进行中...";
+                    syncBtn.style.opacity = "0.7";
+                } else {
+                    syncBtn.disabled = false;
+                    syncBtn.textContent = "🚀 立即执行手动同步";
+                    syncBtn.style.opacity = "1";
+                }
+
+            } catch (err) {
+                console.error("更新状态失败", err);
+            }
+        }
+
+        // Fetch logs
+        async function updateLogs() {
+            try {
+                const res = await fetch("/api/logs");
+                const data = await res.json();
+                const consoleDiv = document.getElementById("console-logs");
+                
+                // Keep scroll position at bottom if already at bottom
+                const isScrolledToBottom = consoleDiv.scrollHeight - consoleDiv.clientHeight <= consoleDiv.scrollTop + 1;
+                
+                consoleDiv.textContent = data.logs || "等待日志中...";
+                
+                if (isScrolledToBottom) {
+                    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                }
+            } catch (err) {
+                console.error("获取日志失败", err);
+            }
+        }
+
+        // Load configs into form
+        async function loadConfig() {
+            try {
+                const res = await fetch("/api/config");
+                const config = await res.json();
+                
+                // Populate inputs
+                for (const key in config) {
+                    const input = document.getElementById(key);
+                    if (input) {
+                        input.value = config[key];
+                    }
+                }
+            } catch (err) {
+                showToast("获取参数配置失败", "error");
+            }
+        }
+
+        // Trigger manual sync
+        document.getElementById("btn-sync").addEventListener("click", async () => {
+            try {
+                const res = await fetch("/api/sync", { method: "POST" });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, "success");
+                    updateStatus();
+                } else {
+                    showToast(data.message, "error");
+                }
+            } catch (err) {
+                showToast("网络请求异常", "error");
+            }
+        });
+
+        // Save config
+        document.getElementById("config-form").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const fields = [
+                "FEISHU_APP_ID", "FEISHU_APP_SECRET", "FEISHU_WIKI_SPACE_ID",
+                "DIFY_API_KEY", "DIFY_DATASET_ID", "DIFY_BASE_URL",
+                "IMAGE_BASE_URL", "SYNC_INTERVAL_MINUTES", "RUN_ONCE"
+            ];
+            
+            const payload = {};
+            fields.forEach(field => {
+                const input = document.getElementById(field);
+                if (input) {
+                    payload[field] = input.value;
+                }
+            });
+
+            try {
+                const res = await fetch("/api/config", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast("配置保存成功！新的参数已载入运行空间。", "success");
+                    loadConfig(); // Reload from backend
+                } else {
+                    showToast(data.message, "error");
+                }
+            } catch (err) {
+                showToast("保存配置发生网络错误", "error");
+            }
+        });
+
+        // Initialize and setup polling loops
+        loadConfig();
+        updateStatus();
+        updateLogs();
+
+        setInterval(updateStatus, 3000);  // Update status every 3 seconds
+        setInterval(updateLogs, 3000);    // Update logs every 3 seconds
+    </script>
+</body>
+</html>

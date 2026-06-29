@@ -1,19 +1,25 @@
 FROM python:3.12-slim
 
-# Set environment variables to prevent Python from writing pyc files and buffering stdout/stderr
+# Prevent Python from writing pyc files and buffering stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install system dependencies if needed, then install python requests library
-RUN pip install --no-cache-dir requests
+# Install required Python dependencies: requests, flask, and python-dotenv
+RUN pip install --no-cache-dir requests flask python-dotenv
 
-# Create images directory for downloaded Feishu images
-RUN mkdir -p /app/images
+# Create directories for downloaded images and configuration files
+RUN mkdir -p /app/images /app/config
 
-# Copy only the necessary python files
-COPY sync_to_dify.py main.py ./
+# Copy python scripts
+COPY sync_to_dify.py main.py app.py state.py ./
 
-# Run the scheduler
+# Copy templates directory for Flask web frontend
+COPY templates/ ./templates/
+
+# Expose Web UI port
+EXPOSE 8080
+
+# Run the multi-threaded app/scheduler
 CMD ["python", "main.py"]
