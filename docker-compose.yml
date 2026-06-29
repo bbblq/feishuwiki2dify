@@ -6,7 +6,7 @@ services:
     container_name: feishuwiki2dify
     restart: always
     volumes:
-      - image-data:/app/images
+      - /DATA/AppData/feishuwiki2dify/images:/app/images
     environment:
       - FEISHU_APP_ID=${FEISHU_APP_ID}
       - FEISHU_APP_SECRET=${FEISHU_APP_SECRET}
@@ -65,7 +65,6 @@ services:
             zh_cn: "图片服务的公开访问地址 (例：http://192.168.200.240:8089)。留空则不同步图片。"
           default: ""
 
-  # 图片静态文件服务器 (nginx)
   image-server:
     image: nginx:alpine
     container_name: feishuwiki2dify-images
@@ -73,10 +72,7 @@ services:
     ports:
       - "${IMAGE_PORT:-8089}:80"
     volumes:
-      - image-data:/usr/share/nginx/html/images:ro
-
-volumes:
-  image-data:
+      - /DATA/AppData/feishuwiki2dify/images:/usr/share/nginx/html/images:ro
 
 x-casaos:
   architectures:
