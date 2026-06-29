@@ -477,33 +477,81 @@ def get_doc_content(token, doc_token):
         print(f"  获取文档内容失败 ({doc_token}): {res.get('msg')}")
         return ""
 
-# ===== 写入 Dify 知识库 =====
-def upsert_to_dify(title, content, doc_token):
+# ===== 获取 Dify 已有文档列表 =====
+def get_dify_documents():
+    """获取 Dify 知识库中已有的所有文档，返回 feishu_token 到 dify_document_id 的映射字典"""
+    headers = {"Authorization": f"Bearer {DIFY_API_KEY}"}
+    doc_map = {}
+    page = 1
+    while True:
+        url = f"{DIFY_BASE_URL}/datasets/{DIFY_DATASET_ID}/documents?page={page}&limit=100"
+        try:
+            res = requests.get(url, headers=headers, timeout=30)
+            if res.status_code != 200:
+                print(f"  获取 Dify 文档列表失败，状态码: {res.status_code}")
+                break
+            
+            data = res.json()
+            items = data.get("data", [])
+            if not items:
+                break
+                
+            for item in items:
+                metadata = item.get("doc_metadata") or {}
+                feishu_token = metadata.get("feishu_token")
+                if feishu_token:
+                    doc_map[feishu_token] = item["id"]
+                    
+            if len(items) < 100:
+                break
+            page += 1
+        except Exception as e:
+            print(f"  获取 Dify 文档列表发生异常: {e}")
+            break
+    return doc_map
+
+# ===== 写入/更新 Dify 知识库 =====
+def upsert_to_dify(title, content, doc_token, existing_doc_id=None):
     if not content.strip():
         print(f"文档 [{title}] 内容为空，跳过同步。")
         return
 
     headers = {"Authorization": f"Bearer {DIFY_API_KEY}"}
-    # 直接创建文本类型的文档
-    url = f"{DIFY_BASE_URL}/datasets/{DIFY_DATASET_ID}/document/create-by-text"
-    payload = {
-        "name": title,
-        "text": content,
-        "indexing_technique": "high_quality",
-        "process_rule": {"mode": "automatic"},
-        "doc_metadata": {
-            "feishu_token": doc_token,
-            "doc_type": "feishu_wiki"
+    
+    if existing_doc_id:
+        # 更新已有文档
+        url = f"{DIFY_BASE_URL}/datasets/{DIFY_DATASET_ID}/documents/{existing_doc_id}/update-by-text"
+        payload = {
+            "name": title,
+            "text": content
         }
-    }
-
-    res = requests.post(url, headers=headers, json=payload)
-    if res.status_code == 200 or res.status_code == 201:
-        print(f"成功导入: {title}")
-        import state
-        state.total_docs_synced += 1
+        res = requests.post(url, headers=headers, json=payload)
+        if res.status_code == 200 or res.status_code == 201:
+            print(f"  更新 Dify 文档成功: {title}")
+            import state
+            state.total_docs_synced += 1
+        else:
+            print(f"  更新 Dify 文档失败: {title}, 状态码: {res.status_code}, 响应: {res.text}")
     else:
-        print(f"导入 Dify 失败: {title}, 状态码: {res.status_code}, 响应: {res.text}")
+        # 创建新文档
+        url = f"{DIFY_BASE_URL}/datasets/{DIFY_DATASET_ID}/document/create-by-text"
+        payload = {
+            "name": title,
+            "text": content,
+            "indexing_technique": "high_quality",
+            "process_rule": {"mode": "automatic"},
+            "doc_metadata": {
+                "feishu_token": doc_token,
+                "doc_type": "feishu_wiki"
+            }
+        }
+        res = requests.post(url, headers=headers, json=payload)
+        if res.status_code == 200 or res.status_code == 201:
+            print(f"  创建 Dify 文档成功: {title}")
+            import state
+            state.total_docs_synced += 1
+        else:
+            print(f"  创建 Dify 文档失败: {title}, 状态码: {res.status_code}, 响应: {res.text}")
 
 # ===== 主流程 =====
 def sync():
@@ -526,6 +574,10 @@ def sync():
     print("正在获取飞书 Token...")
     token = get_feishu_token()
 
+    print("正在拉取 Dify 已有文档列表...")
+    dify_doc_map = get_dify_documents()
+    print(f"Dify 中已存在 {len(dify_doc_map)} 个关联文档")
+
     print("正在读取飞书知识空间节点列表...")
     nodes = get_wiki_nodes(token)
     print(f"找到 {len(nodes)} 个节点")
@@ -538,9 +590,13 @@ def sync():
             print(f"跳过非新版文档 ({obj_type}): {title}")
             continue
 
+        obj_token = node["obj_token"]
         print(f"同步: {title}")
-        content = get_doc_content(token, node["obj_token"])
-        upsert_to_dify(title, content, node["obj_token"])
+        content = get_doc_content(token, obj_token)
+        
+        # 检查是否在 Dify 中已存在
+        existing_id = dify_doc_map.get(obj_token)
+        upsert_to_dify(title, content, obj_token, existing_id)
 
     print("同步完成！")
 
