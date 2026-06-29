@@ -137,9 +137,9 @@ IMAGE_BASE_URL=
 1. **知识库** -> **查看知识库** (`wiki:wiki:readonly`)
 2. **云文档** -> **查看、导出新版文档** (`docx:document:readonly`)
 3. **云文档** -> **查看、下载云空间文件** (`drive:drive:readonly`)
-4. **云文档** -> **下载文档内嵌媒体文件** (`drive:media:download`) ⚠️ **图片同步必需**
+4. **云文档** -> **下载云文档中的图片和附件** (`docs:document.media:download`) ⚠️ **图片同步必需**
 
-> ⚠️ `drive:media:download` 权限与 `drive:drive:readonly` 不同！前者专门用于下载文档中嵌入的图片/附件，后者仅访问云空间文件。缺少此权限会导致图片下载返回 403。
+> ⚠️ `docs:document.media:download` 权限与 `drive:drive:readonly` 不同！前者专门用于下载文档中嵌入的图片/附件，后者仅访问云空间文件。缺少此权限会导致图片下载返回 403。
 
 ## 🏠 CasaOS 安装
 
