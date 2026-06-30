@@ -383,7 +383,9 @@ def blocks_to_markdown(blocks, doc_token, token):
         # ---- 表格 ----
         elif bt == BLOCK_TABLE:
             table_lines = table_to_markdown_lines(block, block_map)
-            lines.extend(table_lines)
+            if table_lines:
+                # 必须用\n拼接表格行，再作为一个整体添加到 lines，避免\n\njoin 把表格行切断
+                lines.append("\n".join(table_lines))
 
         # ---- 容器类 block（Grid / GridColumn / QuoteContainer）——递归处理子节点 ----
         elif bt in (BLOCK_GRID, BLOCK_GRID_COLUMN, BLOCK_QUOTE_CONTAINER):
@@ -464,10 +466,23 @@ def table_to_markdown_lines(table_block, block_map):
     rows = prop.get("row_size", 0)
     cols = prop.get("column_size", 0)
 
-    if rows == 0 or cols == 0:
+    # 优先使用 table.cells，回退到 children
+    cell_ids = table_data.get("cells", []) or table_block.get("children", [])
+
+    if not cell_ids:
         return []
 
-    children = table_block.get("children", [])
+    # 如果 row/col 尺寸未知，递归得到 cols 数
+    if rows == 0 or cols == 0:
+        # 无法确定表格结构，逐个提取文本并拼接
+        texts = []
+        for cell_id in cell_ids:
+            cell_block = block_map.get(cell_id)
+            if cell_block:
+                cell_text = extract_cell_text(cell_block, block_map)
+                if cell_text.strip():
+                    texts.append(cell_text.strip())
+        return [" | ".join(texts)] if texts else []
 
     result_lines = []
     table_rows = []
@@ -476,8 +491,8 @@ def table_to_markdown_lines(table_block, block_map):
         row = []
         for c in range(cols):
             idx = r * cols + c
-            if idx < len(children):
-                cell_block = block_map.get(children[idx])
+            if idx < len(cell_ids):
+                cell_block = block_map.get(cell_ids[idx])
                 if cell_block:
                     cell_text = extract_cell_text(cell_block, block_map)
                     row.append(cell_text.replace("\n", " ").strip())
