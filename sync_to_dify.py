@@ -84,8 +84,8 @@ BLOCK_FILE = 23
 BLOCK_GRID = 24
 BLOCK_GRID_COLUMN = 25
 BLOCK_IMAGE = 27
-BLOCK_TABLE = 32
-BLOCK_TABLE_CELL = 33
+BLOCK_TABLE = 33       # 飞书 API 实际：33 = 表格本体（有 'table' 键）
+BLOCK_TABLE_CELL = 32  # 飞书 API 实际：32 = 表格单元格（有 'table_cell' 键）
 BLOCK_QUOTE_CONTAINER = 35
 
 # Block 类型到其数据字段名的映射（这些 block 都包含 elements 列表）
