@@ -576,6 +576,12 @@ def upsert_to_dify(title, content, doc_token, existing_doc_id=None):
         print(f"文档 [{title}] 内容为空，跳过同步。")
         return
 
+    # 将文档标题作为 Markdown 一级标题注入到文本内容最前方，确保 Dify 进行向量索引，能够精准被标题搜索召回
+    if title:
+        title_header = f"# {title}"
+        if not content.strip().startswith(title_header):
+            content = f"{title_header}\n\n{content}"
+
     headers = {"Authorization": f"Bearer {DIFY_API_KEY}"}
     
     # 构建自定义分块规则
