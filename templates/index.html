@@ -396,6 +396,10 @@
                         <label for="FEISHU_WIKI_SPACE_ID">飞书知识库空间 ID</label>
                         <input type="text" id="FEISHU_WIKI_SPACE_ID" required placeholder="76336333976...">
                     </div>
+                    <div class="form-group">
+                        <label for="FEISHU_DOMAIN">飞书域名 <span style="font-weight:400;font-size:0.85em;color:var(--text-secondary)">（用于生成文档链接，如 example.feishu.cn）</span></label>
+                        <input type="text" id="FEISHU_DOMAIN" placeholder="feishu.cn">
+                    </div>
 
                     <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;">
 
@@ -579,7 +583,7 @@
         document.getElementById("config-form").addEventListener("submit", async (e) => {
             e.preventDefault();
             const fields = [
-                "FEISHU_APP_ID", "FEISHU_APP_SECRET", "FEISHU_WIKI_SPACE_ID",
+                "FEISHU_APP_ID", "FEISHU_APP_SECRET", "FEISHU_WIKI_SPACE_ID", "FEISHU_DOMAIN",
                 "DIFY_API_KEY", "DIFY_DATASET_ID", "DIFY_BASE_URL",
                 "IMAGE_BASE_URL", "SYNC_INTERVAL_MINUTES", "RUN_ONCE",
                 "FORCE_SINGLE_CHUNK", "MAX_TOKENS", "CHUNK_OVERLAP"

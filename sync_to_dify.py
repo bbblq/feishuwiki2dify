@@ -8,6 +8,7 @@ CONFIG_PATH = os.environ.get("CONFIG_PATH", "/app/config/config.json")
 FEISHU_APP_ID = ""
 FEISHU_APP_SECRET = ""
 FEISHU_WIKI_SPACE_ID = ""
+FEISHU_DOMAIN = "feishu.cn"  # 公司飞书域名，如 example.feishu.cn
 DIFY_API_KEY = ""
 DIFY_DATASET_ID = ""
 DIFY_BASE_URL = "http://localhost/v1"
@@ -31,6 +32,7 @@ def load_settings():
         "FEISHU_APP_ID": config.get("FEISHU_APP_ID") or os.environ.get("FEISHU_APP_ID", ""),
         "FEISHU_APP_SECRET": config.get("FEISHU_APP_SECRET") or os.environ.get("FEISHU_APP_SECRET", ""),
         "FEISHU_WIKI_SPACE_ID": config.get("FEISHU_WIKI_SPACE_ID") or os.environ.get("FEISHU_WIKI_SPACE_ID", ""),
+        "FEISHU_DOMAIN": config.get("FEISHU_DOMAIN") or os.environ.get("FEISHU_DOMAIN", "feishu.cn"),
         "DIFY_API_KEY": config.get("DIFY_API_KEY") or os.environ.get("DIFY_API_KEY", ""),
         "DIFY_DATASET_ID": config.get("DIFY_DATASET_ID") or os.environ.get("DIFY_DATASET_ID", ""),
         "DIFY_BASE_URL": config.get("DIFY_BASE_URL") or os.environ.get("DIFY_BASE_URL", "http://localhost/v1"),
@@ -42,13 +44,14 @@ def load_settings():
     }
 
 def load_globals():
-    global FEISHU_APP_ID, FEISHU_APP_SECRET, FEISHU_WIKI_SPACE_ID
+    global FEISHU_APP_ID, FEISHU_APP_SECRET, FEISHU_WIKI_SPACE_ID, FEISHU_DOMAIN
     global DIFY_API_KEY, DIFY_DATASET_ID, DIFY_BASE_URL
     global IMAGE_BASE_URL, IMAGES_DIR, MAX_TOKENS, CHUNK_OVERLAP, FORCE_SINGLE_CHUNK
     settings = load_settings()
     FEISHU_APP_ID = settings["FEISHU_APP_ID"]
     FEISHU_APP_SECRET = settings["FEISHU_APP_SECRET"]
     FEISHU_WIKI_SPACE_ID = settings["FEISHU_WIKI_SPACE_ID"]
+    FEISHU_DOMAIN = settings["FEISHU_DOMAIN"]
     DIFY_API_KEY = settings["DIFY_API_KEY"]
     DIFY_DATASET_ID = settings["DIFY_DATASET_ID"]
     DIFY_BASE_URL = settings["DIFY_BASE_URL"]
@@ -586,7 +589,7 @@ def get_dify_documents():
     return doc_map
 
 # ===== 写入/更新 Dify 知识库 =====
-def upsert_to_dify(title, content, doc_token, existing_doc_id=None):
+def upsert_to_dify(title, content, doc_token, node_token=None, existing_doc_id=None):
     if not content.strip():
         print(f"文档 [{title}] 内容为空，跳过同步。")
         return
@@ -596,6 +599,11 @@ def upsert_to_dify(title, content, doc_token, existing_doc_id=None):
         title_header = f"# {title}"
         if not content.strip().startswith(title_header):
             content = f"{title_header}\n\n{content}"
+
+    # 在文档末尾注入飞书原文链接，方便模型引用来源
+    if node_token and FEISHU_DOMAIN:
+        source_url = f"https://{FEISHU_DOMAIN}/wiki/{node_token}"
+        content = content.rstrip() + f"\n\n---\n来源：{source_url}\n"
 
     headers = {"Authorization": f"Bearer {DIFY_API_KEY}"}
     
@@ -669,6 +677,8 @@ def upsert_to_dify(title, content, doc_token, existing_doc_id=None):
             "process_rule": process_rule,
             "doc_metadata": {
                 "feishu_token": doc_token,
+                "feishu_node_token": node_token or "",
+                "feishu_url": f"https://{FEISHU_DOMAIN}/wiki/{node_token}" if node_token else "",
                 "doc_type": "feishu_wiki"
             }
         }
@@ -718,12 +728,13 @@ def sync():
             continue
 
         obj_token = node["obj_token"]
+        node_token = node.get("node_token", "")
         print(f"同步: {title}")
         content = get_doc_content(token, obj_token)
         
         # 检查是否在 Dify 中已存在
         existing_id = dify_doc_map.get(obj_token)
-        upsert_to_dify(title, content, obj_token, existing_id)
+        upsert_to_dify(title, content, obj_token, node_token, existing_id)
 
     print("同步完成！")
 
